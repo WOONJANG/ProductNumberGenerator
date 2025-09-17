@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>품번 생성기 | 브랜드-년도-월-소재-품목-넘버-홈/어웨이</title>
+  <style>
+    :root{--bg:#0b0b10;--panel:#12121a;--ink:#eef0f8;--muted:#a3a7bf;--bd:#232334}
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1100px;margin:22px auto;padding:16px}
+    h1{font-size:20px;margin:0 0 10px}
+    .card{background:#12121a;border:1px solid var(--bd);border-radius:12px;padding:14px;margin:10px 0}
+    label{font-size:12px;color:#b8bdd7;display:block;margin:0 0 4px}
+    select,input,textarea{width:100%;padding:8px 10px;border-radius:10px;border:1px solid #2a2a44;background:#0b0b13;color:var(--ink)}
+    textarea{min-height:64px}
+    button{cursor:pointer;border:0;border-radius:10px;padding:8px 12px;background:#5566cc;color:#fff;font-weight:700}
+    button.secondary{background:transparent;border:1px solid #2a2a44}
+    .sku{font-family:ui-monospace,monospace;background:#07070c;border:1px solid #202033;border-radius:10px;padding:10px 12px;font-size:18px;margin-top:8px}
+
+    /* 한 줄 툴바 */
+    .toolbar{display:flex;gap:12px;align-items:flex-end;overflow:auto;padding-bottom:8px}
+    .toolbar .field{min-width:160px}
+    .toolbar .field.year{min-width:120px}
+    .toolbar .field.month,.toolbar .field.ha,.toolbar .field.number{min-width:120px}
+    .toolbar::-webkit-scrollbar{height:10px}
+    .toolbar::-webkit-scrollbar-thumb{background:#2a2a44;border-radius:6px}
+
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    @media (max-width:980px){.grid{grid-template-columns:repeat(6,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}.toolbar{flex-wrap:wrap;overflow:visible}}
+
+    .muted{color:var(--muted);font-size:12px}
+  </style>
+  <script>
+    // ====== CONFIG: Google Apps Script Web App URL ======
+    const CONFIG = { ENDPOINT: 'https://script.google.com/macros/s/AKfycbwHHKnISIdbAFw9RJue2DJd5S13vpwD80yeRx8dlP1_k7Dr6-PIEVw1j4dQxpjXFDJnBg/exec' };
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h1>품번 생성기 (브랜드-년도-월-소재-품목-넘버-홈/어웨이)</h1>
+
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="muted">Google 스프레드시트 연동 상태: <span id="syncStatus">대기</span></div>
+      <div>
+        <button id="btnRefresh">데이터 새로고침</button>
+      </div>
+    </div>
+
+    <!-- 선택 영역: 한 줄 -->
+    <div class="card">
+      <div class="toolbar">
+        <div class="field brand">
+          <label>브랜드</label>
+          <select id="brand"></select>
+        </div>
+        <div class="field year">
+          <label>년도</label>
+          <input id="year" type="number" min="2000" max="2099" value="2025"/>
+          <div class="muted">년도코드: A=1 … J=0 (끝자리)</div>
+        </div>
+        <div class="field month">
+          <label>월</label>
+          <select id="month">
+            <option value="01">01</option><option value="02">02</option><option value="03">03</option>
+            <option value="04">04</option><option value="05">05</option><option value="06">06</option>
+            <option value="07">07</option><option value="08" selected>08</option><option value="09">09</option>
+            <option value="10">10</option><option value="11">11</option><option value="12">12</option>
+          </select>
+        </div>
+        <div class="field ha">
+          <label>홈/어웨이</label>
+          <select id="ha"><option value="H">H — 홈</option><option value="A">A — 어웨이</option></select>
+        </div>
+        <div class="field material">
+          <label>소재</label>
+          <select id="material"></select>
+        </div>
+        <div class="field item">
+          <label>품목</label>
+          <select id="item"></select>
+        </div>
+        <div class="field number">
+          <label>넘버</label>
+          <select id="number"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 결과 출력 -->
+    <div class="card">
+      <label>생성된 품번</label>
+      <div id="sku" class="sku">-</div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btnCopy">복사</button>
+        <button id="btnCopyNoHy" class="secondary">하이픈 제거 복사</button>
+      </div>
+      <div class="muted" style="margin-top:6px">형식: 브랜드-년도-월-소재-품목-넘버-홈/어웨이</div>
+    </div>
+
+    <!-- 코드 관리: 각 선택 항목 바로 아래쪽 영역에 배치 (행별) -->
+    <div class="card">
+      <h3 style="margin:0 0 10px;font-size:14px">코드 관리</h3>
+      <div class="grid">
+        <div style="grid-column: span 6">
+          <label>브랜드 추가/갱신 (코드=이름, 줄바꿈으로 여러 개)</label>
+          <textarea id="brandInput" placeholder="예: J=정관장\nV=브이엑스"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px"><button id="btnBrandUp">브랜드 반영</button></div>
+        </div>
+        <div style="grid-column: span 6">
+          <label>소재 추가/갱신</label>
+          <textarea id="materialInput" placeholder="예: P=폴리\nC=면\nN=나일론"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px"><button id="btnMaterialUp">소재 반영</button></div>
+        </div>
+        <div style="grid-column: span 6">
+          <label>품목 추가/갱신</label>
+          <textarea id="itemInput" placeholder="예: 18=유니폼\n01=패딩\n02=조끼패딩"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px"><button id="btnItemUp">품목 반영</button></div>
+        </div>
+        <div style="grid-column: span 6">
+          <label>넘버 추가/갱신</label>
+          <textarea id="numberInput" placeholder="예: 1=어센틱\n2=레플리카"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px"><button id="btnNumberUp">넘버 반영</button></div>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:8px">시트 연동 시, 새로고침을 누르면 시트 값으로 덮어씁니다.</div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 데이터 사전 =====
+    const YEAR_CODE={0:'J',1:'A',2:'B',3:'C',4:'D',5:'E',6:'F',7:'G',8:'H',9:'I'};
+
+    const defaultData={
+      brand:{'J':'정관장','V':'브이엑스','L':'라이온즈','A':'안양','N':'엔씨','NX':'네임엑스'},
+      material:{'P':'폴리','C':'면','N':'나일론','W':'우븐','D':'다이마루','L2':'링클'},
+      item:{'18':'유니폼','01':'패딩','02':'조끼패딩','03':'츄리닝 상의','04':'츄리닝 하의','05':'츄리닝 세트(상·하)','06':'맨투맨','07':'긴팔','08':'반팔','09':'반바지','10':'긴바지'},
+      number:{'1':'어센틱','2':'레플리카'}
+    };
+
+    // ===== 시트 연동 =====
+    async function fetchFromSheet(){
+      const status=document.getElementById('syncStatus');
+      if(!CONFIG.ENDPOINT){ status.textContent='엔드포인트 미설정'; return; }
+      status.textContent='불러오는 중…';
+      try{
+        const res = await fetch(CONFIG.ENDPOINT,{method:'GET',headers:{'accept':'application/json'}});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const data = await res.json();
+        ['brand','material','item','number'].forEach(k=>{
+          if(data && data[k] && typeof data[k]==='object') defaultData[k]=data[k];
+        });
+        status.textContent='동기화 완료';
+        loadOptions();
+      }catch(e){
+        console.error(e); status.textContent='동기화 실패 (기본 데이터 사용)';
+      }
+    }
+
+    // ===== 공통 =====
+    function loadOptions(){
+      ['brand','material','item','number'].forEach(key=>{
+        const sel=document.getElementById(key);
+        sel.innerHTML='';
+        Object.keys(defaultData[key]).forEach(code=>{
+          const opt=document.createElement('option');
+          opt.value=code; opt.textContent=code+' — '+defaultData[key][code];
+          sel.appendChild(opt);
+        });
+      });
+      buildSKU();
+    }
+
+    function toYearCode(y){ const last=Number(String(y).slice(-1)); return YEAR_CODE[last]; }
+
+    function buildSKU(){
+      const b=document.getElementById('brand').value;
+      const y=Number(document.getElementById('year').value||0);
+      const yC=toYearCode(y);
+      const m=document.getElementById('month').value;
+      const mat=document.getElementById('material').value;
+      const it=document.getElementById('item').value.padStart(2,'0');
+      const num=document.getElementById('number').value;
+      const ha=document.getElementById('ha').value;
+
+      const withHy=[b, yC+m, mat+it, num+ha].join('-');
+      const noHy=b+yC+m+mat+it+num+ha;
+
+      document.getElementById('sku').textContent=withHy;
+      document.getElementById('btnCopyNoHy').onclick=()=>{navigator.clipboard.writeText(noHy)};
+    }
+
+    function applyInput(type, textareaId){
+      const txt=document.getElementById(textareaId).value.trim();
+      if(!txt) return;
+      txt.split(/\n|,/).forEach(line=>{
+        const [code,name]=line.split('=');
+        if(code && name){ defaultData[type][code.trim()]=name.trim(); }
+      });
+      loadOptions();
+    }
+
+    // 이벤트
+    ['brand','year','month','material','item','number','ha'].forEach(id=>{
+      document.getElementById(id).addEventListener('input',buildSKU);
+    });
+    document.getElementById('btnCopy').addEventListener('click',()=>{
+      navigator.clipboard.writeText(document.getElementById('sku').textContent)
+    });
+
+    document.getElementById('btnBrandUp').addEventListener('click',()=>applyInput('brand','brandInput'));
+    document.getElementById('btnMaterialUp').addEventListener('click',()=>applyInput('material','materialInput'));
+    document.getElementById('btnItemUp').addEventListener('click',()=>applyInput('item','itemInput'));
+    document.getElementById('btnNumberUp').addEventListener('click',()=>applyInput('number','numberInput'));
+
+    document.getElementById('btnRefresh').addEventListener('click',fetchFromSheet);
+
+    // 초기화
+    loadOptions();
+    fetchFromSheet();
+  </script>
+</body>
+</html>
