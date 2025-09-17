@@ -96,6 +96,10 @@
             <option value="A">어웨이</option>
           </select>
         </div>
+        <div class="field color">
+          <label>색상</label>
+          <select id="color"></select>
+        </div>
       </div>
     </div>
 
@@ -195,7 +199,8 @@
       brand:{'-':'데이터 없음','V':'브이엑스'},
       material:{'P':'폴리','C':'면'},
       item:{'18':'유니폼','01':'패딩'},
-      number:{'1':'어센틱','2':'레플리카'}
+      number:{'1':'어센틱','2':'레플리카'},
+      color:{'WH':'WHITE','BK':'BLACK'}
     };
 
     async function fetchFromSheet(){
