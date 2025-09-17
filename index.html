@@ -39,8 +39,10 @@
   </style>
   <script>
     // ====== CONFIG: Google Apps Script Web App URL ======
-    // 구글 Apps Script에서 배포 후 받은 URL을 아래 ENDPOINT에 붙여넣으세요.
-    const CONFIG = { ENDPOINT: 'https://script.google.com/macros/s/AKfycbw7eqd63_F1j5wybfRrxWMh8Z7LKlstzETGgUgi7eP9zRAz41MCxryQeAXOtTeWo_DGAw/exec' };
+    // 배포한 GAS 웹앱 URL을 아래 ENDPOINT에 넣으세요.
+    const CONFIG = {
+      ENDPOINT: 'https://script.google.com/macros/s/AKfycbzyaWKsw3FYixH6qeaJhIhhLFb5HTKxGK09oKKVxREh-_LbhPDTSxF6KdKwZbpnjdum0g/exec'
+    };
   </script>
 </head>
 <body>
@@ -103,7 +105,7 @@
       <div class="muted" style="margin-top:6px">형식: 브랜드-년도-월-소재-품목-넘버-홈/어웨이</div>
     </div>
 
-    <!-- 코드 관리: 숨김 → 클릭 시 목록 표시, '추가' 누르면 입력칸 표시 -->
+    <!-- 코드 관리 -->
     <div class="card">
       <div class="row-flex" style="justify-content:space-between">
         <strong>코드 관리</strong>
@@ -156,7 +158,7 @@
             </div>
           </div>
         </div>
-        <div class="muted" style="margin-top:8px">※ 현재 웹앱은 시트에서 <strong>읽기(GET)</strong>만 합니다. 시트에 쓰기(추가 저장)까지 원하시면 Apps Script <code>doPost</code> 엔드포인트를 추가해 드릴 수 있어요.</div>
+        <div class="muted" style="margin-top:8px">※ 현재는 시트에 <strong>쓰기(POST)</strong>까지 지원합니다. 실패 시 상태/알림을 확인하세요.</div>
       </div>
     </div>
   </div>
@@ -184,7 +186,8 @@
       ['brand','material','item','number'].forEach(key=>{
         const sel=document.getElementById(key);
         sel.innerHTML='';
-        Object.keys(defaultData[key]).forEach(code=>{
+        // 정렬(코드 기준)
+        Object.keys(defaultData[key]).sort().forEach(code=>{
           const opt=document.createElement('option');
           opt.value=code; opt.textContent=code+' — '+defaultData[key][code];
           sel.appendChild(opt);
@@ -209,7 +212,6 @@
       document.getElementById('btnCopyNoHy').onclick=()=>navigator.clipboard.writeText(noHy);
     }
 
-    // ===== 코드 관리 UI =====
     function renderLists(){
       const types=['brand','material','item','number'];
       types.forEach(t=>{
@@ -229,43 +231,80 @@
     }
 
     function wireManagePanel(){
+      // 열기/닫기
       document.getElementById('manageToggle').addEventListener('click',()=>{
         const panel=document.getElementById('managePanel');
-        const opened=panel.classList.toggle('hidden');
-        document.getElementById('manageToggle').textContent = opened? '열기' : '닫기';
-        if(!opened){ renderLists(); }
+        const nowHidden = panel.classList.toggle('hidden'); // true면 숨김 상태
+        document.getElementById('manageToggle').textContent = nowHidden ? '열기' : '닫기';
+        if(!nowHidden){ renderLists(); }
       });
 
+      // 추가 폼 보여주기/닫기
       document.querySelectorAll('.addBtn').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          showAddRow(btn.dataset.type,true);
-        });
+        btn.addEventListener('click',()=> showAddRow(btn.dataset.type,true));
       });
       document.querySelectorAll('.cancelBtn').forEach(btn=>{
-        btn.addEventListener('click',()=>showAddRow(btn.dataset.type,false));
+        btn.addEventListener('click',()=> showAddRow(btn.dataset.type,false));
       });
+
+      // ★★★ 여기: 저장 버튼 → 서버 POST(시트 반영) ★★★
       document.querySelectorAll('.saveBtn').forEach(btn=>{
-        btn.addEventListener('click',()=>{
-          const type=btn.dataset.type;
-          const code=document.getElementById('new-'+type+'-code').value.trim();
-          const name=document.getElementById('new-'+type+'-name').value.trim();
-          if(!code||!name) return;
-          defaultData[type][code]=name;
-          loadOptions();
-          renderLists();
-          showAddRow(type,false);
-          document.getElementById('new-'+type+'-code').value='';
-          document.getElementById('new-'+type+'-name').value='';
+        btn.addEventListener('click', async ()=>{
+          const type = btn.dataset.type;
+          const codeEl = document.getElementById('new-'+type+'-code');
+          const nameEl = document.getElementById('new-'+type+'-name');
+          const code = (codeEl.value||'').trim();
+          const name = (nameEl.value||'').trim();
+          if(!code || !name){
+            alert('코드와 이름을 입력하세요.');
+            return;
+          }
+
+          // 프론트 중복 1차 체크(서버에서도 2차 체크)
+          if (defaultData[type] && defaultData[type][code]) {
+            alert('이미 존재하는 코드입니다: ' + code);
+            return;
+          }
+
+          const status=document.getElementById('syncStatus');
+          status.textContent='저장 중…';
+
+          try {
+            const res = await fetch(CONFIG.ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type, code, name })
+            });
+            if(!res.ok) throw new Error('HTTP '+res.status);
+            const json = await res.json();
+            if(!json.ok) throw new Error(json.error || 'save failed');
+
+            // 최신 데이터로 교체
+            ['brand','material','item','number'].forEach(k=>{
+              if(json.data && json.data[k]) defaultData[k] = json.data[k];
+            });
+            loadOptions();
+            renderLists();
+            showAddRow(type,false);
+            codeEl.value=''; nameEl.value='';
+            status.textContent = '저장 완료';
+          } catch(err){
+            console.error(err);
+            document.getElementById('syncStatus').textContent = '저장 실패';
+            alert('저장 실패: ' + err.message);
+          }
         });
       });
     }
 
+    // 이벤트 바인딩
     ['brand','year','month','material','item','number','ha'].forEach(id=>{
       document.getElementById(id).addEventListener('input',buildSKU);
     });
     document.getElementById('btnCopy').addEventListener('click',()=>navigator.clipboard.writeText(document.getElementById('sku').textContent));
     document.getElementById('btnRefresh').addEventListener('click',fetchFromSheet);
 
+    // 초기 실행
     loadOptions();
     fetchFromSheet();
     wireManagePanel();
