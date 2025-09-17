@@ -227,7 +227,7 @@
     }
 
     function loadOptions(){
-      ['brand','material','item','number'].forEach(key=>{
+      ['brand','material','item','number', 'color'].forEach(key=>{
         const sel=document.getElementById(key);
         sel.innerHTML='';
         Object.keys(defaultData[key]).sort().forEach(code=>{
@@ -322,7 +322,7 @@ function buildSKU(){
             if(!json.ok) throw new Error(json.error || 'save failed');
 
             // 최신 데이터 반영
-            ['brand','material','item','number'].forEach(k=>{
+            ['brand','material','item','number', 'color'].forEach(k=>{
               if(json.data && json.data[k]) defaultData[k] = json.data[k];
             });
             loadOptions();
