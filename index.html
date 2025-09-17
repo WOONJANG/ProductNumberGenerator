@@ -248,10 +248,10 @@ function buildSKU(){
   const mat=document.getElementById('material').value;
   const it=document.getElementById('item').value.padStart(2,'0');
   const num=document.getElementById('number').value;
-  const col=document.getElementById('color').value; // ★ 추가
   const ha=document.getElementById('ha').value;
-  const withHy=[b, yC+m, mat+it, num, col, ha].join('-'); // ★ 수정
-  const noHy=b+yC+m+mat+it+num+col+ha;
+  const col=document.getElementById('color').value; // 색상
+  const withHy=[b, yC+m, mat+it, num, ha, col].join('-'); // ★ 수정
+  const noHy=b+yC+m+mat+it+num+ha+col;
   document.getElementById('sku').textContent=withHy;
   document.getElementById('btnCopyNoHy').onclick=()=>navigator.clipboard.writeText(noHy);
 }
