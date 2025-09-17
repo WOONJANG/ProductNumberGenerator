@@ -340,7 +340,7 @@ function buildSKU(){
     }
 
     // 이벤트 바인딩
-    ['brand','year','month','material','item','number','ha'].forEach(id=>{
+    ['brand','year','month','material','item','number','ha', 'color'].forEach(id=>{
       document.getElementById(id).addEventListener('input',buildSKU);
     });
     document.getElementById('btnCopy').addEventListener('click',()=>navigator.clipboard.writeText(document.getElementById('sku').textContent));
