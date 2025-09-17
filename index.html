@@ -41,7 +41,7 @@
   <!-- 배포한 GAS 웹앱 URL을 넣으세요 -->
   <script>
     const CONFIG = {
-      ENDPOINT: 'https://script.google.com/macros/s/AKfycbzjR9c7lFsqrYeOnn0mPEJ8pL931H01sfbg5rFCOriptmkCU79vs6zABjmCLUid68wLNA/exec' // ← 교체
+      ENDPOINT: 'https://script.google.com/macros/s/AKfycbyDqf4ZZxVAk-0n3jUx7FBMkjIMEJJtI0h3UlxW5LAbubBo6w-wxWj0LM1Le823T0wTLg/exec' // ← 교체
     };
   </script>
 </head>
@@ -241,19 +241,21 @@
 
     function toYearCode(y){ return YEAR_CODE[Number(String(y).slice(-1))]; }
 
-    function buildSKU(){
-      const b=document.getElementById('brand').value;
-      const yC=toYearCode(document.getElementById('year').value);
-      const m=document.getElementById('month').value;
-      const mat=document.getElementById('material').value;
-      const it=document.getElementById('item').value.padStart(2,'0');
-      const num=document.getElementById('number').value;
-      const ha=document.getElementById('ha').value;
-      const withHy=[b, yC+m, mat+it, num+ha].join('-');
-      const noHy=b+yC+m+mat+it+num+ha;
-      document.getElementById('sku').textContent=withHy;
-      document.getElementById('btnCopyNoHy').onclick=()=>navigator.clipboard.writeText(noHy);
-    }
+function buildSKU(){
+  const b=document.getElementById('brand').value;
+  const yC=toYearCode(document.getElementById('year').value);
+  const m=document.getElementById('month').value;
+  const mat=document.getElementById('material').value;
+  const it=document.getElementById('item').value.padStart(2,'0');
+  const num=document.getElementById('number').value;
+  const col=document.getElementById('color').value; // ★ 추가
+  const ha=document.getElementById('ha').value;
+  const withHy=[b, yC+m, mat+it, num, col, ha].join('-'); // ★ 수정
+  const noHy=b+yC+m+mat+it+num+col+ha;
+  document.getElementById('sku').textContent=withHy;
+  document.getElementById('btnCopyNoHy').onclick=()=>navigator.clipboard.writeText(noHy);
+}
+
 
     function renderLists(){
       ['brand','material','item','number'].forEach(t=>{
