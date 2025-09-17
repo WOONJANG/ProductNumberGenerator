@@ -91,8 +91,9 @@
          <div class="field ha">
           <label>홈/어웨이</label>
           <select id="ha">
-            <option value="H">H — 홈</option>
-            <option value="A">A — 어웨이</option>
+            <option value="">-</option>
+            <option value="H">홈</option>
+            <option value="A">어웨이</option>
           </select>
         </div>
       </div>
@@ -191,7 +192,7 @@
   <script>
     const YEAR_CODE={0:'J',1:'A',2:'B',3:'C',4:'D',5:'E',6:'F',7:'G',8:'H',9:'I'};
     const defaultData={
-      brand:{'J':'정관장','V':'브이엑스'},
+      brand:{'-':'데이터 없음','V':'브이엑스'},
       material:{'P':'폴리','C':'면'},
       item:{'18':'유니폼','01':'패딩'},
       number:{'1':'어센틱','2':'레플리카'}
